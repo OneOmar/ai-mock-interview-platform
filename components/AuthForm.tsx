@@ -1,23 +1,18 @@
 "use client";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { useRouter } from "next/navigation";
+import {zodResolver} from "@hookform/resolvers/zod";
+import {useForm} from "react-hook-form";
+import {z} from "zod";
+import {useRouter} from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { toast } from "sonner";
-import { auth } from "@/firebase/client";
+import {toast} from "sonner";
 
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
+import {auth} from "@/firebase/client";
+import {signIn, signUp} from "@/lib/actions/auth.action";
+import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from "firebase/auth";
 
-import { signIn, signUp } from "@/lib/actions/auth.action";
-
-
-import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
+import {Button} from "@/components/ui/button";
+import {Form} from "@/components/ui/form";
 import FormField from "@/components/FormField";
 
 // Schema validation - conditionally includes name field for sign-up
@@ -25,10 +20,10 @@ const createAuthSchema = (isSignUp: boolean) =>
   z.object({
     name: isSignUp
       ? z
-          .string()
-          .min(2, "Name must be at least 2 characters")
-          .max(50, "Name must be less than 50 characters")
-          .regex(/^[a-zA-Z\s]+$/, "Name can only contain letters and spaces")
+        .string()
+        .min(2, "Name must be at least 2 characters")
+        .max(50, "Name must be less than 50 characters")
+        .regex(/^[a-zA-Z\s]+$/, "Name can only contain letters and spaces")
       : z.string().optional(),
     email: z
       .string()
@@ -49,7 +44,7 @@ interface AuthFormProps {
   type: FormType;
 }
 
-const AuthForm = ({ type }: AuthFormProps) => {
+const AuthForm = ({type}: AuthFormProps) => {
   const router = useRouter();
   const isSignUp = type === "sign-up";
   const schema = createAuthSchema(isSignUp);
@@ -64,28 +59,62 @@ const AuthForm = ({ type }: AuthFormProps) => {
     },
   });
 
-  // Handle form submission
-  const onSubmit = async (values: z.infer<typeof schema>) => {
+// Handle form submission
+  const onSubmit = async (data: z.infer<typeof schema>) => {
     try {
-      // TODO: Replace with actual API calls
       if (isSignUp) {
-        // await signUp(values);
-        console.log("Creating account:", { ...values, password: "[HIDDEN]" });
+        // Sign up flow
+        const {name, email, password} = data;
+
+        // Create Firebase user
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+        // Save user to database
+        const result = await signUp({
+          uid: userCredential.user.uid,
+          name: name!,
+          email,
+        });
+
+        if (!result.success) {
+          toast.error(result.message);
+          return;
+        }
+
         toast.success("Account created successfully. Please sign in.");
         router.push("/sign-in");
       } else {
-        // await signIn(values);
-        console.log("Signing in:", {
-          email: values.email,
-          password: "[HIDDEN]",
-        });
+        // Sign in flow
+        const {email, password} = data;
+
+        // Authenticate with Firebase
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const idToken = await userCredential.user.getIdToken();
+
+        if (!idToken) {
+          toast.error("Failed to get authentication token. Please try again.");
+          return;
+        }
+
+        // Create session
+        const result = await signIn({email, idToken});
+
+        if (!result.success) {
+          toast.error(result.message);
+          return;
+        }
+
         toast.success("Signed in successfully.");
-        router.push("/"); // More specific redirect
+        router.push("/");
       }
     } catch (error) {
       console.error("Auth error:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Authentication failed";
+
+      // Handle Firebase auth errors
+      const errorMessage = error instanceof Error
+        ? error.message.replace("Firebase: ", "").replace(/\(auth\/[\w-]+\)\.?/, "").trim()
+        : "Authentication failed. Please try again.";
+
       toast.error(errorMessage);
     }
   };
