@@ -20,17 +20,20 @@
 # production
 /build
 
+# IDE settings
+.idea/
+
 # misc
 .DS_Store
 *.pem
 
-# debug
+# debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# environment files (untracked for security)
 .env*
 
 # vercel
