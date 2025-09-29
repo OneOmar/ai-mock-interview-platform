@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
+import { auth } from "@/firebase/client";
+
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+
+import { signIn, signUp } from "@/lib/actions/auth.action";
+
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
