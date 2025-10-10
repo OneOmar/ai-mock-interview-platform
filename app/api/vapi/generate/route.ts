@@ -1,26 +1,27 @@
-import {google} from "@ai-sdk/google";
-import {generateText} from "ai";
-import {NextRequest, NextResponse} from "next/server";
+import { google } from "@ai-sdk/google";
+import { generateText } from "ai";
+import { NextRequest, NextResponse } from "next/server";
 
-import {db} from "@/firebase/admin";
-import {getRandomInterviewCover} from "@/lib/utils";
+import { db } from "@/firebase/admin";
+import { getRandomInterviewCover } from "@/lib/utils";
 
 // POST: Generate interview questions using Gemini AI
 export async function POST(request: NextRequest) {
   try {
     // Extract request parameters
-    const {type, role, level, techstack, amount, userid} = await request.json();
+    const { type, role, level, techstack, amount, userid } =
+      await request.json();
 
     // Validate required fields
     if (!type || !role || !level || !techstack || !amount || !userid) {
       return NextResponse.json(
-        {success: false, error: "Missing required fields"},
-        {status: 400}
+        { success: false, error: "Missing required fields" },
+        { status: 400 }
       );
     }
 
     // Generate questions with Gemini AI
-    const {text: questions} = await generateText({
+    const { text: questions } = await generateText({
       model: google("gemini-2.0-flash-001"),
       prompt: `Generate ${amount} interview questions for a ${role} position.
 
@@ -35,13 +36,13 @@ Requirements:
 - Questions should be clear and conversational
 - Format: ["Question 1", "Question 2", "Question 3"]
 
-Important: Return the raw JSON array directly, not wrapped in \`\`\`json blocks.`,
+Important: Return the raw JSON array directly, not wrapped in \`\`\`json blocks.`
     });
 
-    // Clean response - remove markdown code blocks if present
+    // Clean response - remove Markdown code blocks if present
     let cleanedQuestions = questions.trim();
 
-    // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+    // Remove Markdown code blocks (```json ... ``` or ``` ... ```)
     cleanedQuestions = cleanedQuestions
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
@@ -65,7 +66,7 @@ Important: Return the raw JSON array directly, not wrapped in \`\`\`json blocks.
       userId: userid,
       finalized: true,
       coverImage: getRandomInterviewCover(),
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
 
     // Save to Firestore
@@ -78,18 +79,20 @@ Important: Return the raw JSON array directly, not wrapped in \`\`\`json blocks.
         interviewId: docRef.id,
         questionsCount: parsedQuestions.length
       },
-      {status: 201}
+      { status: 201 }
     );
-
   } catch (error) {
     console.error("Interview generation error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to generate interview"
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate interview"
       },
-      {status: 500}
+      { status: 500 }
     );
   }
 }
@@ -102,6 +105,6 @@ export async function GET() {
       message: "Interview generation API is running",
       version: "1.0.0"
     },
-    {status: 200}
+    { status: 200 }
   );
 }

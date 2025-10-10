@@ -1,8 +1,11 @@
 "use client";
 
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import Image from "next/image";
 import {Phone, PhoneOff} from "lucide-react";
+import {useRouter} from "next/navigation";
+import {toast} from "sonner";
+import vapi from "@/lib/vapi.sdk";
 
 // Call status enum
 enum CallStatus {
@@ -12,40 +15,125 @@ enum CallStatus {
   FINISHED = "FINISHED",
 }
 
-interface AgentProps {
-  userId: string;
-  userName: string;
-  type: "generate" | "practice";
+// Message interface
+interface SavedMessage {
+  role: "user" | "system" | "assistant";
+  content: string;
 }
 
-export default function Agent({userName}: AgentProps) {
-  // State management
+export default function Agent({userName, userId, type}: AgentProps) {
+  const router = useRouter();
+
+  // State
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<SavedMessage[]>([]);
 
-  // Get last message for display
-  const lastMessage = messages[messages.length - 1];
-
-  // Call state checks
+  // Computed values
+  const lastMessage = messages[messages.length - 1]?.content || "";
   const isCallActive = callStatus === CallStatus.ACTIVE;
   const isConnecting = callStatus === CallStatus.CONNECTING;
-  const isInactive = callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED;
+  const isInactive =
+    callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED;
 
-  // Handle call toggle
-  const handleCallToggle = () => {
-    if (isCallActive) {
+  // Setup VAPI event listeners
+  useEffect(() => {
+    // Call started
+    const handleCallStart = () => {
+      setCallStatus(CallStatus.ACTIVE);
+      toast.success("Call connected!");
+    };
+
+    // Call ended
+    const handleCallEnd = () => {
       setCallStatus(CallStatus.FINISHED);
-      setIsSpeaking(false);
-    } else {
-      setCallStatus(CallStatus.CONNECTING);
+      toast.info("Call ended");
+    };
 
-      setTimeout(() => {
-        setCallStatus(CallStatus.ACTIVE);
-        setIsSpeaking(true);
-        setMessages(["Hello! I'm your AI interviewer. Let's get started."]);
-      }, 2000);
+    // Message received - save final transcripts
+    const handleMessage = (message: Message) => {
+      if (message.type === "transcript" && message.transcriptType === "final") {
+        setMessages((prev) => [
+          ...prev,
+          {role: message.role, content: message.transcript},
+        ]);
+      }
+    };
+
+    // Speech events
+    const handleSpeechStart = () => setIsSpeaking(true);
+    const handleSpeechEnd = () => setIsSpeaking(false);
+
+    // Error handling
+    const handleError = (error: Error) => {
+      console.error("VAPI error:", error);
+      toast.error("Call error occurred");
+      setCallStatus(CallStatus.INACTIVE);
+    };
+
+    // Register listeners
+    vapi.on("call-start", handleCallStart);
+    vapi.on("call-end", handleCallEnd);
+    vapi.on("message", handleMessage);
+    vapi.on("speech-start", handleSpeechStart);
+    vapi.on("speech-end", handleSpeechEnd);
+    vapi.on("error", handleError);
+
+    // Cleanup
+    return () => {
+      vapi.removeAllListeners();
+    };
+  }, []);
+
+  // Redirect to home when call finishes
+  useEffect(() => {
+    if (callStatus === CallStatus.FINISHED) {
+      setTimeout(() => router.push("/"), 1000);
     }
+  }, [callStatus, router]);
+
+  // Start workflow call
+  const handleCallStart = async () => {
+    // Validate call type
+    if (type !== "generate") {
+      toast.error("Unsupported call type");
+      return;
+    }
+
+    setCallStatus(CallStatus.CONNECTING);
+    const loadingToast = toast.loading("Connecting...");
+
+    try {
+      // Get workflow ID
+      const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
+
+      if (!workflowId) {
+        throw new Error("VAPI Workflow ID not configured");
+      }
+
+      // Start VAPI workflow
+      await vapi.start(null, null, null, workflowId, {
+        variableValues: {
+          username: userName,
+          userid: userId,
+        },
+      });
+
+      toast.dismiss(loadingToast);
+      toast.success("Workflow started successfully!");
+      setCallStatus(CallStatus.ACTIVE);
+    } catch (error) {
+      console.error("Workflow start failed:", error);
+      toast.dismiss(loadingToast);
+      toast.error("Failed to start workflow");
+      setCallStatus(CallStatus.INACTIVE);
+    }
+  };
+
+  // End call
+  const handleCallEnd = () => {
+    vapi.stop();
+    setCallStatus(CallStatus.FINISHED);
   };
 
   return (
@@ -93,20 +181,20 @@ export default function Agent({userName}: AgentProps) {
         </div>
       )}
 
-      {/* Call Button */}
+      {/* Call Controls */}
       <div className="w-full flex justify-center">
         {!isCallActive ? (
           <button
-            onClick={handleCallToggle}
+            onClick={handleCallStart}
             disabled={isConnecting}
-            className="btn-call flex items-center gap-2 cursor-pointer"
+            className="btn-call flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Phone className="size-5"/>
             {isInactive ? "Start Call" : "Connecting..."}
           </button>
         ) : (
           <button
-            onClick={handleCallToggle}
+            onClick={handleCallEnd}
             className="btn-disconnect flex items-center gap-2 cursor-pointer"
           >
             <PhoneOff className="size-5"/>
