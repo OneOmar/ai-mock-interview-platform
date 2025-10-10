@@ -3,17 +3,26 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import InterviewCard from "@/components/InterviewCard";
-import { dummyInterviews } from "@/constants";
+// import { dummyInterviews } from "@/constants";
+import { getCurrentUser, getInterviewsByUserId, getLatestInterviews } from "@/lib/actions/auth.action";
 
 // Page metadata for SEO
 export const metadata: Metadata = {
   title: "Home - PrepWise",
   description:
-    "Practice job interviews with AI-powered feedback. Get interview-ready with realistic mock interviews and instant performance insights.",
+    "Practice job interviews with AI-powered feedback. Get interview-ready with realistic mock interviews and instant performance insights."
 };
 
-export default function HomePage() {
-  const hasInterviews = dummyInterviews.length > 0;
+export default async function HomePage() {
+  const user = await getCurrentUser();
+
+  const [userInterviews, latestInterviews] = await Promise.all([
+    await getInterviewsByUserId(user?.id),
+    getLatestInterviews({ excludeUserId: user?.id })
+  ]);
+
+  const hasInterviews = (userInterviews ?? []).length > 0;
+  const hasUpcomingInterviews = (latestInterviews ?? []).length > 0;
 
   return (
     <div className="space-y-12">
@@ -48,7 +57,7 @@ export default function HomePage() {
           <h2 className="text-2xl font-semibold">Your Interviews</h2>
           {hasInterviews && (
             <Link
-              href="/interviews"
+              href="/interview"
               className="text-sm text-blue-600 hover:text-blue-800"
             >
               View all →
@@ -58,8 +67,12 @@ export default function HomePage() {
 
         {hasInterviews ? (
           <div className="interviews-section">
-            {dummyInterviews.slice(0, 3).map((interview) => (
-              <InterviewCard key={interview.id} {...interview} />
+            {userInterviews?.slice(0, 3).map((interview) => (
+              <InterviewCard
+                interviewId={interview.id}
+                key={interview.id}
+                {...interview}
+              />
             ))}
           </div>
         ) : (
@@ -77,11 +90,22 @@ export default function HomePage() {
       {/* Available Interviews Section */}
       <section className="space-y-6">
         <h2 className="text-2xl font-semibold">Available Interviews</h2>
-        <div className="interviews-section">
-          {dummyInterviews.map((interview) => (
-            <InterviewCard key={interview.id} {...interview} />
-          ))}
-        </div>
+
+        {hasUpcomingInterviews ? (
+          <div className="interviews-section">
+            {latestInterviews?.map((interview) => (
+              <InterviewCard
+                interviewId={interview.id}
+                key={interview.id}
+                {...interview}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
+            <p className="text-gray-500">No available interviews yet</p>
+          </div>
+        )}
       </section>
     </div>
   );
