@@ -1,12 +1,12 @@
-import {Metadata} from "next";
+import { Metadata } from "next";
 import Agent from "@/components/Agent";
-import {getCurrentUser} from "@/lib/actions/auth.action";
-import {redirect} from "next/navigation";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import { redirect } from "next/navigation";
 
 // Page metadata
 export const metadata: Metadata = {
   title: "Generate Interview - PrepWise",
-  description: "Create a personalized AI-powered mock interview tailored to your role and tech stack.",
+  description: "Create a personalized AI-powered mock interview tailored to your role and tech stack."
 };
 
 export default async function InterviewPage() {
@@ -29,8 +29,8 @@ export default async function InterviewPage() {
 
       {/* Agent Component */}
       <Agent
-        userId={user.id}
-        userName={user.name}
+        userId={user?.id}
+        userName={user?.name}
         type="generate"
       />
     </div>
