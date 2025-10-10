@@ -193,13 +193,18 @@ export async function getLatestInterviews(params?: {
   try {
     const {excludeUserId, limit = 10} = params || {};
 
-    // If we're excluding a user we must order by userId before ordering by createdAt
+    // Build base query for finalized interviews
     let query = db.collection("interviews").where("finalized", "==", true);
 
     // Exclude specific user if provided
     if (excludeUserId) {
-      // required: order by the field used with "!="
-      query = query.orderBy("userId").where("userId", "!=", excludeUserId);
+      // Order by userId first (required for != operator)
+      query = query
+        .orderBy("userId")
+        .where("userId", "!=", excludeUserId)
+        .orderBy("createdAt", "desc");
+    } else {
+      // No exclusion, just order by date
       query = query.orderBy("createdAt", "desc");
     }
 

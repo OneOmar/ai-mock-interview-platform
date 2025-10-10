@@ -5,42 +5,38 @@ import { Calendar, Star } from "lucide-react";
 
 import { Button } from "./ui/button";
 import InterviewTechIcons from "./InterviewTechIcons";
-import { cn, getRandomInterviewCover } from "@/lib/utils"; // Type badge color mapping
+import { cn, getRandomInterviewCover } from "@/lib/utils";
 
 // Type badge color mapping
 const TYPE_COLORS = {
-  Behavioral: "bg-blue-100 text-blue-700",
-  Mixed: "bg-purple-100 text-purple-700",
-  Technical: "bg-green-100 text-green-700",
+  behavioral: "bg-blue-100 text-blue-700",
+  mixed: "bg-purple-100 text-purple-700",
+  technical: "bg-green-100 text-green-700"
 } as const;
 
-interface InterviewCardProps {
-  interviewId: string;
-  userId: string;
-  role: string;
-  type: string;
-  techstack: string[];
-  createdAt: string;
-  feedback?: Feedback | null;
-}
-
 export default function InterviewCard({
-  interviewId,
-  role,
-  type,
-  techstack,
-  createdAt,
-  feedback = null,
-}: InterviewCardProps) {
-  // Normalize interview type
-  const normalizedType = /mix/gi.test(type) ? "Mixed" : type;
+                                        interviewId,
+                                        role,
+                                        type,
+                                        techstack,
+                                        createdAt,
+                                        feedback = null
+                                      }: InterviewCardProps) {
+  // Normalize interview type to lowercase
+  const normalizedType = /mix/gi.test(type) ? "mixed" : type.toLowerCase();
+
+  // Capitalize for display
+  const displayType =
+    normalizedType.charAt(0).toUpperCase() + normalizedType.slice(1);
+
+  // Get badge color
   const badgeColor =
     TYPE_COLORS[normalizedType as keyof typeof TYPE_COLORS] ||
-    TYPE_COLORS.Mixed;
+    TYPE_COLORS.mixed;
 
   // Format date
   const formattedDate = dayjs(
-    feedback?.createdAt || createdAt || Date.now(),
+    feedback?.createdAt || createdAt || Date.now()
   ).format("MMM D, YYYY");
 
   // Determine card state
@@ -58,12 +54,10 @@ export default function InterviewCard({
           <span
             className={cn(
               "absolute top-0 right-0 px-4 py-2 rounded-bl-lg text-sm font-medium",
-              normalizedType === "Behavioral" && "bg-blue-100 text-blue-700",
-              normalizedType === "Mixed" && "bg-purple-100 text-purple-700",
-              normalizedType === "Technical" && "bg-green-100 text-green-700",
+              badgeColor
             )}
           >
-            {normalizedType}
+            {displayType}
           </span>
 
           {/* Cover Image */}

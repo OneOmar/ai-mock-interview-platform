@@ -1,24 +1,29 @@
-import { Metadata } from "next";
+import {Metadata} from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import {Button} from "@/components/ui/button";
 import InterviewCard from "@/components/InterviewCard";
 // import { dummyInterviews } from "@/constants";
-import { getCurrentUser, getInterviewsByUserId, getLatestInterviews } from "@/lib/actions/auth.action";
+import {getCurrentUser, getInterviewsByUserId, getLatestInterviews,} from "@/lib/actions/auth.action";
+import {redirect} from "next/navigation";
 
 // Page metadata for SEO
 export const metadata: Metadata = {
   title: "Home - PrepWise",
   description:
-    "Practice job interviews with AI-powered feedback. Get interview-ready with realistic mock interviews and instant performance insights."
+    "Practice job interviews with AI-powered feedback. Get interview-ready with realistic mock interviews and instant performance insights.",
 };
 
 export default async function HomePage() {
   const user = await getCurrentUser();
 
+  if (!user) {
+    redirect("/sign-in");
+  }
+
   const [userInterviews, latestInterviews] = await Promise.all([
     await getInterviewsByUserId(user?.id),
-    getLatestInterviews({ excludeUserId: user?.id })
+    getLatestInterviews({excludeUserId: user.id, limit: 10}),
   ]);
 
   const hasInterviews = (userInterviews ?? []).length > 0;
@@ -57,7 +62,7 @@ export default async function HomePage() {
           <h2 className="text-2xl font-semibold">Your Interviews</h2>
           {hasInterviews && (
             <Link
-              href="/interview"
+              href="/"
               className="text-sm text-blue-600 hover:text-blue-800"
             >
               View all →
