@@ -4,8 +4,9 @@ import Link from "next/link";
 import {Button} from "@/components/ui/button";
 import InterviewCard from "@/components/InterviewCard";
 // import { dummyInterviews } from "@/constants";
-import {getCurrentUser, getInterviewsByUserId, getLatestInterviews,} from "@/lib/actions/auth.action";
+import {getCurrentUser} from "@/lib/actions/auth.action";
 import {redirect} from "next/navigation";
+import {getInterviewsByUserId, getLatestInterviews,} from "@/lib/actions/general.action";
 
 // Page metadata for SEO
 export const metadata: Metadata = {
