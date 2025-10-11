@@ -1,10 +1,10 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import {Phone, PhoneOff} from "lucide-react";
-import {useRouter} from "next/navigation";
-import {toast} from "sonner";
+import { Phone, PhoneOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import vapi from "@/lib/vapi.sdk";
 
 // Call status enum
@@ -21,7 +21,13 @@ interface SavedMessage {
   content: string;
 }
 
-export default function Agent({userName, userId, type}: AgentProps) {
+export default function Agent({
+                                userName,
+                                userId,
+                                interviewId,
+                                type,
+                                questions
+                              }: AgentProps) {
   const router = useRouter();
 
   // State
@@ -55,7 +61,7 @@ export default function Agent({userName, userId, type}: AgentProps) {
       if (message.type === "transcript" && message.transcriptType === "final") {
         setMessages((prev) => [
           ...prev,
-          {role: message.role, content: message.transcript},
+          { role: message.role, content: message.transcript }
         ]);
       }
     };
@@ -85,6 +91,20 @@ export default function Agent({userName, userId, type}: AgentProps) {
     };
   }, []);
 
+  const handleGenerateFeedback = async (messages: SavedMessage[]) => {
+    console.log("Generate feedback here!");
+
+    // TODO: Replace mock implementation with real server action (for feedback generation)
+    const { success, id } = { success: true, id: "feedback-id" };
+
+    if (success && id) {
+      router.push(`/interview/${interviewId}/feedback`);
+    } else {
+      console.error("Error generating feedback!");
+      router.push("/");
+    }
+  };
+
   // Redirect to home when call finishes
   useEffect(() => {
     if (callStatus === CallStatus.FINISHED) {
@@ -94,10 +114,17 @@ export default function Agent({userName, userId, type}: AgentProps) {
 
   // Start workflow call
   const handleCallStart = async () => {
-    // Validate call type
-    if (type !== "generate") {
-      toast.error("Unsupported call type");
-      return;
+    // Handle interview type separately
+    if (type === "interview") {
+      // Format questions list for the AI interviewer prompt
+      const formattedQuestions =
+        questions?.map((q) => `- ${q}`).join("\n") || "";
+
+      // TODO: Integrate formattedQuestions into the AI workflow variables
+      // e.g., pass to vapi.start() or custom interview setup in future iteration
+      console.log("Interview setup in progress:", formattedQuestions);
+
+      return; // Prevent default workflow execution for now
     }
 
     setCallStatus(CallStatus.CONNECTING);
@@ -115,8 +142,8 @@ export default function Agent({userName, userId, type}: AgentProps) {
       await vapi.start(null, null, null, workflowId, {
         variableValues: {
           username: userName,
-          userid: userId,
-        },
+          userid: userId
+        }
       });
 
       toast.dismiss(loadingToast);
@@ -150,7 +177,7 @@ export default function Agent({userName, userId, type}: AgentProps) {
               height={54}
               className="object-cover"
             />
-            {isSpeaking && <span className="animate-speak"/>}
+            {isSpeaking && <span className="animate-speak" />}
           </div>
           <h3>AI Interviewer</h3>
         </div>
@@ -189,7 +216,7 @@ export default function Agent({userName, userId, type}: AgentProps) {
             disabled={isConnecting}
             className="btn-call flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Phone className="size-5"/>
+            <Phone className="size-5" />
             {isInactive ? "Start Call" : "Connecting..."}
           </button>
         ) : (
@@ -197,7 +224,7 @@ export default function Agent({userName, userId, type}: AgentProps) {
             onClick={handleCallEnd}
             className="btn-disconnect flex items-center gap-2 cursor-pointer"
           >
-            <PhoneOff className="size-5"/>
+            <PhoneOff className="size-5" />
             End Call
           </button>
         )}
