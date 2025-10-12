@@ -1,11 +1,13 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import {Phone, PhoneOff} from "lucide-react";
-import {useRouter} from "next/navigation";
-import {toast} from "sonner";
+import { Phone, PhoneOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import vapi from "@/lib/vapi.sdk";
+import { createFeedback } from "@/lib/actions/general.action";
+import { interviewer } from "@/constants";
 
 // Call status enum
 enum CallStatus {
@@ -21,7 +23,13 @@ interface SavedMessage {
   content: string;
 }
 
-export default function Agent({userName, userId, type}: AgentProps) {
+export default function Agent({
+  userName,
+  userId,
+  interviewId,
+  type,
+  questions,
+}: AgentProps) {
   const router = useRouter();
 
   // State
@@ -55,7 +63,7 @@ export default function Agent({userName, userId, type}: AgentProps) {
       if (message.type === "transcript" && message.transcriptType === "final") {
         setMessages((prev) => [
           ...prev,
-          {role: message.role, content: message.transcript},
+          { role: message.role, content: message.transcript },
         ]);
       }
     };
@@ -85,47 +93,89 @@ export default function Agent({userName, userId, type}: AgentProps) {
     };
   }, []);
 
-  // Redirect to home when call finishes
+  // Generate feedback after interview
+  const handleGenerateFeedback = async (transcript: SavedMessage[]) => {
+    try {
+      toast.loading("Generating feedback...");
+
+      const { success, feedbackId } = await createFeedback({
+        interviewId: interviewId!,
+        userId: userId!,
+        transcript,
+      });
+
+      if (success && feedbackId) {
+        toast.success("Feedback generated successfully!");
+        router.push(`/interview/${interviewId}/feedback`);
+      } else {
+        throw new Error("Failed to generate feedback");
+      }
+    } catch (error) {
+      console.error("Error generating feedback:", error);
+      toast.error("Failed to generate feedback");
+      router.push("/");
+    }
+  };
+
+  // Handle call finish based on type
   useEffect(() => {
     if (callStatus === CallStatus.FINISHED) {
-      setTimeout(() => router.push("/"), 1000);
+      // Generate feedback for interview type
+      if (type === "interview" && messages.length > 0) {
+        handleGenerateFeedback(messages);
+      } else {
+        // Redirect to home for other types
+        setTimeout(() => router.push("/"), 1000);
+      }
     }
-  }, [callStatus, router]);
+  }, [callStatus, messages, type]);
 
-  // Start workflow call
+  // Start call
   const handleCallStart = async () => {
-    // Validate call type
-    if (type !== "generate") {
-      toast.error("Unsupported call type");
-      return;
-    }
-
     setCallStatus(CallStatus.CONNECTING);
     const loadingToast = toast.loading("Connecting...");
 
     try {
-      // Get workflow ID
-      const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
+      // Handle interview type
+      if (type === "interview") {
+        // Format questions for AI interviewer
+        const formattedQuestions =
+          questions?.map((q) => `- ${q}`).join("\n") || "";
 
-      if (!workflowId) {
-        throw new Error("VAPI Workflow ID not configured");
+        // Start interview with questions
+        await vapi.start(interviewer, {
+          variableValues: {
+            questions: formattedQuestions,
+          },
+        });
+      } else if (type === "generate") {
+        // Handle generate workflow type
+        const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
+
+        if (!workflowId) {
+          throw new Error("VAPI Workflow ID not configured");
+        }
+
+        // Start workflow for generation
+        await vapi.start(null, null, null, workflowId, {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        });
+      } else {
+        throw new Error("Unsupported call type");
       }
 
-      // Start VAPI workflow
-      await vapi.start(null, null, null, workflowId, {
-        variableValues: {
-          username: userName,
-          userid: userId,
-        },
-      });
-
       toast.dismiss(loadingToast);
-      toast.success("Workflow started successfully!");
+      toast.success("Call started successfully!");
       setCallStatus(CallStatus.ACTIVE);
     } catch (error) {
-      console.error("Workflow start failed:", error);
+      console.error("Call start failed:", error);
       toast.dismiss(loadingToast);
-      toast.error("Failed to start workflow");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to start call",
+      );
       setCallStatus(CallStatus.INACTIVE);
     }
   };
@@ -135,7 +185,6 @@ export default function Agent({userName, userId, type}: AgentProps) {
     vapi.stop();
     setCallStatus(CallStatus.FINISHED);
   };
-
   return (
     <div className="space-y-6">
       {/* Video Call View */}
@@ -150,7 +199,7 @@ export default function Agent({userName, userId, type}: AgentProps) {
               height={54}
               className="object-cover"
             />
-            {isSpeaking && <span className="animate-speak"/>}
+            {isSpeaking && <span className="animate-speak" />}
           </div>
           <h3>AI Interviewer</h3>
         </div>
@@ -189,7 +238,7 @@ export default function Agent({userName, userId, type}: AgentProps) {
             disabled={isConnecting}
             className="btn-call flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Phone className="size-5"/>
+            <Phone className="size-5" />
             {isInactive ? "Start Call" : "Connecting..."}
           </button>
         ) : (
@@ -197,7 +246,7 @@ export default function Agent({userName, userId, type}: AgentProps) {
             onClick={handleCallEnd}
             className="btn-disconnect flex items-center gap-2 cursor-pointer"
           >
-            <PhoneOff className="size-5"/>
+            <PhoneOff className="size-5" />
             End Call
           </button>
         )}

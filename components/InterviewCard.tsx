@@ -11,17 +11,17 @@ import { cn, getRandomInterviewCover } from "@/lib/utils";
 const TYPE_COLORS = {
   behavioral: "bg-blue-100 text-blue-700",
   mixed: "bg-purple-100 text-purple-700",
-  technical: "bg-green-100 text-green-700"
+  technical: "bg-green-100 text-green-700",
 } as const;
 
 export default function InterviewCard({
-                                        interviewId,
-                                        role,
-                                        type,
-                                        techstack,
-                                        createdAt,
-                                        feedback = null
-                                      }: InterviewCardProps) {
+  interviewId,
+  role,
+  type,
+  techstack,
+  createdAt,
+  feedback = null,
+}: InterviewCardProps) {
   // Normalize interview type to lowercase
   const normalizedType = /mix/gi.test(type) ? "mixed" : type.toLowerCase();
 
@@ -36,7 +36,7 @@ export default function InterviewCard({
 
   // Format date
   const formattedDate = dayjs(
-    feedback?.createdAt || createdAt || Date.now()
+    feedback?.createdAt || createdAt || Date.now(),
   ).format("MMM D, YYYY");
 
   // Determine card state
@@ -54,7 +54,7 @@ export default function InterviewCard({
           <span
             className={cn(
               "absolute top-0 right-0 px-4 py-2 rounded-bl-lg text-sm font-medium",
-              badgeColor
+              badgeColor,
             )}
           >
             {displayType}
