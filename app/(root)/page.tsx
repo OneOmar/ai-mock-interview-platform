@@ -1,12 +1,15 @@
-import {Metadata} from "next";
+import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import {Button} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import InterviewCard from "@/components/InterviewCard";
-// import { dummyInterviews } from "@/constants";
-import {getCurrentUser} from "@/lib/actions/auth.action";
-import {redirect} from "next/navigation";
-import {getInterviewsByUserId, getLatestInterviews,} from "@/lib/actions/general.action";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import { redirect } from "next/navigation";
+import {
+  getFeedbacksByUserId,
+  getInterviewsByUserId,
+  getLatestInterviews,
+} from "@/lib/actions/general.action";
 
 // Page metadata for SEO
 export const metadata: Metadata = {
@@ -22,10 +25,17 @@ export default async function HomePage() {
     redirect("/sign-in");
   }
 
-  const [userInterviews, latestInterviews] = await Promise.all([
-    await getInterviewsByUserId(user?.id),
-    getLatestInterviews({excludeUserId: user.id, limit: 10}),
+  // Fetch interviews and feedbacks in parallel
+  const [userInterviews, latestInterviews, userFeedbacks] = await Promise.all([
+    getInterviewsByUserId(user.id),
+    getLatestInterviews({ excludeUserId: user.id, limit: 10 }),
+    getFeedbacksByUserId(user.id), // Add this
   ]);
+
+  // Create feedback map for quick lookup
+  const feedbackMap = new Map(
+    userFeedbacks.map((feedback) => [feedback.interviewId, feedback]),
+  );
 
   const hasInterviews = (userInterviews ?? []).length > 0;
   const hasUpcomingInterviews = (latestInterviews ?? []).length > 0;
@@ -78,6 +88,7 @@ export default async function HomePage() {
                 interviewId={interview.id}
                 key={interview.id}
                 {...interview}
+                feedback={feedbackMap.get(interview.id) || null}
               />
             ))}
           </div>
@@ -104,6 +115,7 @@ export default async function HomePage() {
                 interviewId={interview.id}
                 key={interview.id}
                 {...interview}
+                feedback={null}
               />
             ))}
           </div>

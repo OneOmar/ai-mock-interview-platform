@@ -6,6 +6,8 @@ import { Phone, PhoneOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import vapi from "@/lib/vapi.sdk";
+import { createFeedback } from "@/lib/actions/general.action";
+import { interviewer } from "@/constants";
 
 // Call status enum
 enum CallStatus {
@@ -22,12 +24,12 @@ interface SavedMessage {
 }
 
 export default function Agent({
-                                userName,
-                                userId,
-                                interviewId,
-                                type,
-                                questions
-                              }: AgentProps) {
+  userName,
+  userId,
+  interviewId,
+  type,
+  questions,
+}: AgentProps) {
   const router = useRouter();
 
   // State
@@ -61,7 +63,7 @@ export default function Agent({
       if (message.type === "transcript" && message.transcriptType === "final") {
         setMessages((prev) => [
           ...prev,
-          { role: message.role, content: message.transcript }
+          { role: message.role, content: message.transcript },
         ]);
       }
     };
@@ -91,68 +93,89 @@ export default function Agent({
     };
   }, []);
 
-  const handleGenerateFeedback = async (messages: SavedMessage[]) => {
-    console.log("Generate feedback here!");
+  // Generate feedback after interview
+  const handleGenerateFeedback = async (transcript: SavedMessage[]) => {
+    try {
+      toast.loading("Generating feedback...");
 
-    // TODO: Replace mock implementation with real server action (for feedback generation)
-    const { success, id } = { success: true, id: "feedback-id" };
+      const { success, feedbackId } = await createFeedback({
+        interviewId: interviewId!,
+        userId: userId!,
+        transcript,
+      });
 
-    if (success && id) {
-      router.push(`/interview/${interviewId}/feedback`);
-    } else {
-      console.error("Error generating feedback!");
+      if (success && feedbackId) {
+        toast.success("Feedback generated successfully!");
+        router.push(`/interview/${interviewId}/feedback`);
+      } else {
+        throw new Error("Failed to generate feedback");
+      }
+    } catch (error) {
+      console.error("Error generating feedback:", error);
+      toast.error("Failed to generate feedback");
       router.push("/");
     }
   };
 
-  // Redirect to home when call finishes
+  // Handle call finish based on type
   useEffect(() => {
     if (callStatus === CallStatus.FINISHED) {
-      setTimeout(() => router.push("/"), 1000);
+      // Generate feedback for interview type
+      if (type === "interview" && messages.length > 0) {
+        handleGenerateFeedback(messages);
+      } else {
+        // Redirect to home for other types
+        setTimeout(() => router.push("/"), 1000);
+      }
     }
-  }, [callStatus, router]);
+  }, [callStatus, messages, type]);
 
-  // Start workflow call
+  // Start call
   const handleCallStart = async () => {
-    // Handle interview type separately
-    if (type === "interview") {
-      // Format questions list for the AI interviewer prompt
-      const formattedQuestions =
-        questions?.map((q) => `- ${q}`).join("\n") || "";
-
-      // TODO: Integrate formattedQuestions into the AI workflow variables
-      // e.g., pass to vapi.start() or custom interview setup in future iteration
-      console.log("Interview setup in progress:", formattedQuestions);
-
-      return; // Prevent default workflow execution for now
-    }
-
     setCallStatus(CallStatus.CONNECTING);
     const loadingToast = toast.loading("Connecting...");
 
     try {
-      // Get workflow ID
-      const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
+      // Handle interview type
+      if (type === "interview") {
+        // Format questions for AI interviewer
+        const formattedQuestions =
+          questions?.map((q) => `- ${q}`).join("\n") || "";
 
-      if (!workflowId) {
-        throw new Error("VAPI Workflow ID not configured");
+        // Start interview with questions
+        await vapi.start(interviewer, {
+          variableValues: {
+            questions: formattedQuestions,
+          },
+        });
+      } else if (type === "generate") {
+        // Handle generate workflow type
+        const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
+
+        if (!workflowId) {
+          throw new Error("VAPI Workflow ID not configured");
+        }
+
+        // Start workflow for generation
+        await vapi.start(null, null, null, workflowId, {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        });
+      } else {
+        throw new Error("Unsupported call type");
       }
 
-      // Start VAPI workflow
-      await vapi.start(null, null, null, workflowId, {
-        variableValues: {
-          username: userName,
-          userid: userId
-        }
-      });
-
       toast.dismiss(loadingToast);
-      toast.success("Workflow started successfully!");
+      toast.success("Call started successfully!");
       setCallStatus(CallStatus.ACTIVE);
     } catch (error) {
-      console.error("Workflow start failed:", error);
+      console.error("Call start failed:", error);
       toast.dismiss(loadingToast);
-      toast.error("Failed to start workflow");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to start call",
+      );
       setCallStatus(CallStatus.INACTIVE);
     }
   };
@@ -162,7 +185,6 @@ export default function Agent({
     vapi.stop();
     setCallStatus(CallStatus.FINISHED);
   };
-
   return (
     <div className="space-y-6">
       {/* Video Call View */}
