@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { isAuthenticated } from "@/lib/actions/auth.action";
 import { redirect } from "next/navigation";
+import SignOutButton from "@/components/SignOutButton";
 
 interface RootLayoutProps {
   children: ReactNode;
@@ -15,13 +16,12 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   if (!isUserAuthenticated) {
     redirect("/sign-in");
   }
-  
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Navigation header */}
-      <header
-        className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <nav className="container mx-auto px-4 h-16 flex items-center">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link
             href="/"
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -35,6 +35,9 @@ export default async function RootLayout({ children }: RootLayoutProps) {
             />
             <h1 className="text-xl font-semibold text-primary-100">PrepWise</h1>
           </Link>
+
+          {/* Sign Out Button */}
+          <SignOutButton />
         </nav>
       </header>
 

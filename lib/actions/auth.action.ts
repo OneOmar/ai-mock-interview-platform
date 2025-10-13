@@ -1,7 +1,7 @@
 "use server";
 
-import {auth, db} from "@/firebase/admin";
-import {cookies} from "next/headers";
+import { auth, db } from "@/firebase/admin";
+import { cookies } from "next/headers";
 
 // Constants
 const SESSION_DURATION = 60 * 60 * 24 * 7; // 1 week in seconds
@@ -29,16 +29,16 @@ export async function setSessionCookie(idToken: string) {
     // Store in browser
     cookieStore.set("session", sessionCookie, getCookieOptions());
 
-    return {success: true};
+    return { success: true };
   } catch (error) {
     console.error("Failed to set session cookie:", error);
-    return {success: false, message: "Failed to create session"};
+    return { success: false, message: "Failed to create session" };
   }
 }
 
 // Sign up new user
 export async function signUp(params: SignUpParams) {
-  const {uid, name, email} = params;
+  const { uid, name, email } = params;
 
   try {
     // Check if user already exists
@@ -74,7 +74,7 @@ export async function signUp(params: SignUpParams) {
 
 // Sign in existing user
 export async function signIn(params: SignInParams) {
-  const {email, idToken} = params;
+  const { email, idToken } = params;
 
   try {
     // Verify user exists
@@ -117,10 +117,10 @@ export async function signOut() {
     const cookieStore = await cookies();
     cookieStore.delete("session");
 
-    return {success: true};
+    return { success: true };
   } catch (error) {
     console.error("Sign out error:", error);
-    return {success: false};
+    return { success: false };
   }
 }
 
